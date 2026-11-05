@@ -2,8 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>تطبيق Lounge الرسمي</title>
+    <!-- مكتبات فايربيس الرسمية المتوافقة والمستقرة -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -1293,7 +1294,6 @@
                 firebase.initializeApp(firebaseConfig);
                 rtdb=firebase.database();
                 auth=firebase.auth();
-                // تحسين سلاسة أداء وسرعة جلب البيانات ومنع الثقل عند إعادة الدخول عبر إيقاف الاستماع المتكرر المفرط
                 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.log(err));
             }
         }catch(e){}
@@ -1383,7 +1383,6 @@
     }
     function initRealtimeSync(){
         if(!currentUserKey||!rtdb)return;
-        // تحسين إدارة الذاكرة وسرعة الإقلاع ومنع الثقل عند إعادة الدخول المتكرر باستخدام .on مرة واحدة بأمان
         rtdb.ref('users/'+currentUserKey).on('value',snap=>{
             if(snap.exists()){
                 userData=snap.val();
@@ -1580,7 +1579,6 @@
                 if(isAdmin){
                     actionButtonHtml = `<button class="action-btn btn-purple" style="padding:6px;margin-top:4px" onclick="openAdminTreasureEditModalForBox('${bKey}')">⚙️ تعديل الصندوق (إدارة)</button>`;
                 } else {
-                    // تعديل كنز لاونج الأسبوعي حصراً: السعر ظاهر، والجائزة مخفية لإثارة الفضول ودفع المستخدم للفتح
                     actionButtonHtml = `<button class="action-btn btn-gold" style="padding:6px" onclick="openTreasureBox('${bKey}', ${b.price}, ${b.reward}, '${b.title}')">افتح الصندوق بـ ${Number(b.price).toLocaleString()} 🪙</button>`;
                 }
 
