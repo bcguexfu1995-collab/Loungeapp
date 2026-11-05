@@ -6,7 +6,6 @@
     <title>تطبيق Lounge الرسمي</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <style>
         *{box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;transition:all 0.2s ease}
         body{margin:0;padding:15px;background:radial-gradient(circle at center,#131826 0%,#070913 100%);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
@@ -903,7 +902,7 @@
 </div>
 
 <script>
-    let currentEmail='',currentUserKey='',rtdb=null,auth=null;
+    let currentEmail='',currentUserKey='',rtdb=null;
     let userData={points:0,gems:0,lastSpinTime:0,activeCounter:'لا يوجد',activeCounterVal:0,customId:'',name:'',avatar:'',bio:'',hasCreatedRoom:false,createdRoomId:'',lastWithdrawTime:0,isBanned:false,whatsapp:'',withdrawCount:0,isAgent:false,agentTelegram:'',agentWhatsapp:'',agentBag:0,gameWins:0,userClicksCount:0,isVerified:false,verificationPhone:'',verificationStatus:'none'};
     let base64Image='',activeChatFriendKey='',activeChatFriendName='',visitedProfileTargetKey='',timerInterval=null;
     let isolatedActiveRoomId='',currentRoomOccupantsCount=0,activeRoomCreatorKey='',globalAppSettings={withdrawLocked:false,dailyCounterLocked:false,tickerText:'أهلاً بكم في تطبيق Lounge الرسمي!'};
@@ -1284,30 +1283,16 @@
                 authDomain: "lounge-app-c28c5.firebaseapp.com",
                 databaseURL: "https://lounge-app-c28c5-default-rtdb.europe-west1.firebasedatabase.app",
                 projectId: "lounge-app-c28c5",
-                storageBucket: "lounge-app-c28c5.firebasestorage.app",
+                storageBucket: "lounge-app-c28c5.appspot.com",
                 messagingSenderId: "64051373921",
-                appId: "1:64051373921:web:8fb8a37a3037690cf08720",
-                measurementId: "G-DB6R4BQZFS"
+                appId: "1:64051373921:web:8fb8a37a3037690cf08720"
             };
             if(typeof firebase!=='undefined'&&!firebase.apps.length){
                 firebase.initializeApp(firebaseConfig);
                 rtdb=firebase.database();
-                auth=firebase.auth();
-                auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.log(err));
             }
         }catch(e){}
-        setTimeout(()=>{
-            try{
-                const savedUserKey=localStorage.getItem('dinarUserKey');
-                if(savedUserKey&&rtdb){
-                    currentUserKey=savedUserKey;
-                    initRealtimeSync();
-                    navigateTo('mainScreen');
-                } else {
-                    navigateTo('authScreen');
-                }
-            }catch(err){navigateTo('authScreen');}
-        },300);
+        navigateTo('authScreen');
     });
 
     function navigateTo(screenId){
@@ -1332,7 +1317,7 @@
         document.getElementById('signupForm').style.display=type==='signup'?'block':'none';
     }
 
-    // --- دالة تسجيل الدخول المُصححة والآمنة 100% ---
+    // --- دالة تسجيل الدخول المُصححة والآمنة 100% (بدون LocalStorage) ---
     function handleLogin(){
         const email = document.getElementById('loginEmail').value.trim();
         const pass = document.getElementById('loginPass').value.trim();
@@ -1359,7 +1344,6 @@
                 }
 
                 currentEmail = email;
-                localStorage.setItem('dinarUserKey', currentUserKey);
 
                 if (email === 'msaftwtn@gmail.com' && uDat.customId !== '1') {
                     rtdb.ref('users/' + currentUserKey).update({ customId: '1' });
@@ -1435,7 +1419,6 @@
                 btn.disabled = false;
                 btn.innerText = "تأكيد إنشاء الحساب ✨";
                 currentEmail = email;
-                localStorage.setItem('dinarUserKey', currentUserKey);
 
                 initRealtimeSync();
                 navigateTo('mainScreen');
@@ -1624,7 +1607,7 @@
         }
         return rtdb.ref('users/'+currentUserKey).update(userData);
     }
-    function handleLogout(){if(timerInterval)clearInterval(timerInterval);try{localStorage.removeItem('dinarUserKey');}catch(e){}currentEmail='';currentUserKey='';navigateTo('authScreen');}
+    function handleLogout(){if(timerInterval)clearInterval(timerInterval);currentEmail='';currentUserKey='';navigateTo('authScreen');}
     
     function loadTreasureBoxesList(){
         if(!rtdb) return;
