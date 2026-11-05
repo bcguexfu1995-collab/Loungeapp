@@ -6,6 +6,7 @@
     <title>تطبيق Lounge الرسمي</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <style>
         *{box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;transition:all 0.2s ease}
         body{margin:0;padding:15px;background:radial-gradient(circle at center,#131826 0%,#070913 100%);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
@@ -902,7 +903,7 @@
 </div>
 
 <script>
-    let currentEmail='',currentUserKey='',rtdb=null;
+    let currentEmail='',currentUserKey='',rtdb=null,auth=null;
     let userData={points:0,gems:0,lastSpinTime:0,activeCounter:'لا يوجد',activeCounterVal:0,customId:'',name:'',avatar:'',bio:'',hasCreatedRoom:false,createdRoomId:'',lastWithdrawTime:0,isBanned:false,whatsapp:'',withdrawCount:0,isAgent:false,agentTelegram:'',agentWhatsapp:'',agentBag:0,gameWins:0,userClicksCount:0,isVerified:false,verificationPhone:'',verificationStatus:'none'};
     let base64Image='',activeChatFriendKey='',activeChatFriendName='',visitedProfileTargetKey='',timerInterval=null;
     let isolatedActiveRoomId='',currentRoomOccupantsCount=0,activeRoomCreatorKey='',globalAppSettings={withdrawLocked:false,dailyCounterLocked:false,tickerText:'أهلاً بكم في تطبيق Lounge الرسمي!'};
@@ -1279,20 +1280,35 @@
         initLoungeTickerAnimation();
         try{
             const firebaseConfig={
-                apiKey: "AIzaSyBlKb3tYoKNqurz3Sw7wUHWcNQLa8xzaWU",
-                authDomain: "lounge-app-c28c5.firebaseapp.com",
-                databaseURL: "https://lounge-app-c28c5-default-rtdb.europe-west1.firebasedatabase.app",
-                projectId: "lounge-app-c28c5",
-                storageBucket: "lounge-app-c28c5.appspot.com",
-                messagingSenderId: "64051373921",
-                appId: "1:64051373921:web:8fb8a37a3037690cf08720"
+                apiKey: "AIzaSyDtafaH13sD8fHRNoyzib_5aqLctsuMnY8",
+                authDomain: "lounge-ed8e4.firebaseapp.com",
+                databaseURL: "https://lounge-ed8e4-default-rtdb.firebaseio.com",
+                projectId: "lounge-ed8e4",
+                storageBucket: "lounge-ed8e4.firebasestorage.app",
+                messagingSenderId: "666831911373",
+                appId: "1:666831911373:web:286661e957635870201484",
+                measurementId: "G-TQBXTEW9FX"
             };
             if(typeof firebase!=='undefined'&&!firebase.apps.length){
                 firebase.initializeApp(firebaseConfig);
                 rtdb=firebase.database();
+                auth=firebase.auth();
+                // تحسين سلاسة أداء وسرعة جلب البيانات ومنع الثقل عند إعادة الدخول عبر إيقاف الاستماع المتكرر المفرط
+                auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.log(err));
             }
         }catch(e){}
-        navigateTo('authScreen');
+        setTimeout(()=>{
+            try{
+                const savedUserKey=localStorage.getItem('dinarUserKey');
+                if(savedUserKey&&rtdb){
+                    currentUserKey=savedUserKey;
+                    initRealtimeSync();
+                    navigateTo('mainScreen');
+                } else {
+                    navigateTo('authScreen');
+                }
+            }catch(err){navigateTo('authScreen');}
+        },300);
     });
 
     function navigateTo(screenId){
@@ -1316,126 +1332,58 @@
         document.getElementById('loginForm').style.display=type==='login'?'block':'none';
         document.getElementById('signupForm').style.display=type==='signup'?'block':'none';
     }
-
-    // --- دالة تسجيل الدخول المُصححة والآمنة 100% (بدون LocalStorage) ---
     function handleLogin(){
-        const email = document.getElementById('loginEmail').value.trim();
-        const pass = document.getElementById('loginPass').value.trim();
-        if(!email || !pass) return alert("⚠️ أدخل البريد وكلمة المرور");
-        if(!rtdb) return alert("❌ خطأ بالاتصال بقاعدة البيانات");
-
-        const btn = document.getElementById('loginBtn');
-        btn.disabled = true;
-        btn.innerText = "جاري الدخول...";
-
-        currentUserKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-
-        rtdb.ref('users/' + currentUserKey).once('value').then(snap => {
-            btn.disabled = false;
-            btn.innerText = "دخول الحساب 🚀";
-
-            if (snap.exists()) {
-                let uDat = snap.val();
-                if (String(uDat.password).trim() !== String(pass).trim()) {
-                    return alert("❌ كلمة المرور غير صحيحة!");
+        const email=document.getElementById('loginEmail').value.trim(),pass=document.getElementById('loginPass').value.trim();
+        if(!email||!pass)return alert("⚠️ أدخل البريد وكلمة المرور");if(!rtdb)return alert("❌ خطأ بالاتصال");
+        const btn=document.getElementById('loginBtn');btn.disabled=true;btn.innerText="جاري الدخول...";
+        currentUserKey=email.replace(/[^a-zA-Z0-9]/g,'_');
+        rtdb.ref('users/'+currentUserKey).once('value').then(snap=>{
+            btn.disabled=false;btn.innerText="دخول الحساب 🚀";
+            if(snap.exists()&&String(snap.val().password).trim()===String(pass).trim()){
+                let uDat=snap.val();
+                if(uDat.isBanned&&email!=='msaftwtn@gmail.com')return alert("🚫 تم تجميد أو حظر هذا الحساب من قبل الإدارة!");
+                currentEmail=email;try{localStorage.setItem('dinarUserKey',currentUserKey);}catch(e){}
+                if(email==='msaftwtn@gmail.com'&&uDat.customId!=='1')rtdb.ref('users/'+currentUserKey).update({customId:'1'});
+                
+                if(email!=='msaftwtn@gmail.com'){
+                    let devKey=localStorage.getItem('dinarDeviceUuid');
+                    if(!devKey){devKey='dev_'+Math.random().toString(36).substring(2)+Date.now();localStorage.setItem('dinarDeviceUuid',devKey);}
+                    rtdb.ref(`device_bindings/${devKey}`).once('value').then(bSnap=>{
+                        if(bSnap.exists()&&bSnap.val().userKey!==currentUserKey){
+                            rtdb.ref(`users/${currentUserKey}`).update({isBanned:true});
+                            rtdb.ref(`users/${bSnap.val().userKey}`).update({isBanned:true});
+                            alert("🚫 تم حظر الحسابات لاكتشاف فتح حسابين على نفس الجهاز!");handleLogout();return;
+                        }else{rtdb.ref(`device_bindings/${devKey}`).set({userKey:currentUserKey});}
+                    });
                 }
-                if (uDat.isBanned && email !== 'msaftwtn@gmail.com') {
-                    return alert("🚫 تم تجميد أو حظر هذا الحساب من قبل الإدارة!");
-                }
-
-                currentEmail = email;
-
-                if (email === 'msaftwtn@gmail.com' && uDat.customId !== '1') {
-                    rtdb.ref('users/' + currentUserKey).update({ customId: '1' });
-                }
-
-                initRealtimeSync();
-                navigateTo('mainScreen');
-            } else {
-                alert("❌ البريد الإلكتروني غير مسجل، يرجى إنشاء حساب جديد!");
-            }
-        }).catch(err => {
-            btn.disabled = false;
-            btn.innerText = "دخول الحساب 🚀";
-            alert("❌ خطأ بالاتصال بالشبكة: " + err.message);
-        });
+                initRealtimeSync();navigateTo('mainScreen');
+            }else{alert("❌ البريد أو كلمة المرور غير صحيحة!");}
+        }).catch(()=>{btn.disabled=false;btn.innerText="دخول الحساب 🚀";alert("❌ خطأ بالاتصال بالشبكة.");});
     }
-
-    // --- دالة إنشاء حساب جديد المُصححة والآمنة 100% ---
     function handleSignup(){
-        const email = document.getElementById('signupEmail').value.trim();
-        const pass = document.getElementById('signupPass').value.trim();
-        if(!email || !pass) return alert("⚠️ يرجى ملء البريد وكلمة المرور");
-        if(pass.length < 6) return alert("⚠️ كلمة المرور يجب أن تكون 6 أحرف أو أرقام فأكثر");
-        if(!rtdb) return alert("❌ خطأ بالاتصال بقاعدة البيانات");
-
-        const btn = document.getElementById('signupBtn');
-        btn.disabled = true;
-        btn.innerText = "جاري الإنشاء...";
-
-        currentUserKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-
-        rtdb.ref('users/' + currentUserKey).once('value').then(check => {
-            if(check.exists()){
-                btn.disabled = false;
-                btn.innerText = "تأكيد إنشاء الحساب ✨";
-                return alert("⚠️ هذا البريد مسجل مسبقاً، يرجى تسجيل الدخول!");
-            }
-
-            let defaultName = email.split('@')[0];
-            let assignedId = (email === 'msaftwtn@gmail.com') ? '1' : Math.floor(100000 + Math.random() * 900000).toString();
-            
-            const newUser = {
-                name: defaultName,
-                email: email,
-                password: pass,
-                customId: assignedId,
-                points: 0,
-                gems: 0,
-                bio: '',
-                lastSpinTime: 0,
-                activeCounter: 'لا يوجد',
-                activeCounterVal: 0,
-                hasCreatedRoom: false,
-                createdRoomId: '',
-                lastWithdrawTime: 0,
-                isBanned: false,
-                whatsapp: '',
-                withdrawCount: 0,
-                isAgent: false,
-                agentTelegram: '',
-                agentWhatsapp: '',
-                agentBag: 0,
-                agentProvince: '',
-                agentAvatar: '',
-                gameWins: 0,
-                userClicksCount: 0,
-                isVerified: false,
-                verificationPhone: '',
-                verificationStatus: 'none'
-            };
-
-            rtdb.ref('users/' + currentUserKey).set(newUser).then(() => {
-                btn.disabled = false;
-                btn.innerText = "تأكيد إنشاء الحساب ✨";
-                currentEmail = email;
-
-                initRealtimeSync();
-                navigateTo('mainScreen');
-            }).catch(err => {
-                btn.disabled = false;
-                btn.innerText = "تأكيد إنشاء الحساب ✨";
-                alert("❌ فشل حفظ البيانات في القاعدة: " + err.message);
+        const email=document.getElementById('signupEmail').value.trim(),pass=document.getElementById('signupPass').value.trim();
+        if(!email||!pass)return alert("⚠️ املأ الخانات");if(!rtdb)return alert("❌ خطأ بالاتصال");
+        const btn=document.getElementById('signupBtn');btn.disabled=true;btn.innerText="جاري الإنشاء...";
+        currentUserKey=email.replace(/[^a-zA-Z0-9]/g,'_');
+        rtdb.ref('users/'+currentUserKey).once('value').then(check=>{
+            if(check.exists()){btn.disabled=false;btn.innerText="تأكيد الحساب ✨";return alert("⚠️ مسجل سابقاً!");}
+            let defaultName=email.split('@')[0],assignedId=(email==='msaftwtn@gmail.com')?'1':Math.floor(100000+Math.random()*900000).toString();
+            const newUser={name:defaultName,email:email,password:pass,customId:assignedId,points:0,gems:0,bio:'',lastSpinTime:0,activeCounter:'لا يوجد',activeCounterVal:0,hasCreatedRoom:false,createdRoomId:'',lastWithdrawTime:0,isBanned:false,whatsapp:'',withdrawCount:0,isAgent:false,agentTelegram:'',agentWhatsapp:'',agentBag:0,agentProvince:'',agentAvatar:'',gameWins:0,userClicksCount:0,isVerified:false,verificationPhone:'',verificationStatus:'none'};
+            rtdb.ref('users/'+currentUserKey).set(newUser).then(()=>{
+                btn.disabled=false;btn.innerText="تأكيد الحساب ✨";currentEmail=email;
+                try{localStorage.setItem('dinarUserKey',currentUserKey);}catch(e){}
+                if(email!=='msaftwtn@gmail.com'){
+                    let devKey=localStorage.getItem('dinarDeviceUuid');
+                    if(!devKey){devKey='dev_'+Math.random().toString(36).substring(2)+Date.now();localStorage.setItem('dinarDeviceUuid',devKey);}
+                    rtdb.ref(`device_bindings/${devKey}`).set({userKey:currentUserKey});
+                }
+                initRealtimeSync();navigateTo('mainScreen');
             });
-        }).catch(err => {
-            btn.disabled = false;
-            btn.innerText = "تأكيد إنشاء الحساب ✨";
-            alert("❌ خطأ بالاتصال: " + err.message);
-        });
+        }).catch(()=>{btn.disabled=false;btn.innerText="تأكيد الحساب ✨";alert("❌ خطأ بالاتصال بالشبكة.");});
     }
-
     function initRealtimeSync(){
         if(!currentUserKey||!rtdb)return;
+        // تحسين إدارة الذاكرة وسرعة الإقلاع ومنع الثقل عند إعادة الدخول المتكرر باستخدام .on مرة واحدة بأمان
         rtdb.ref('users/'+currentUserKey).on('value',snap=>{
             if(snap.exists()){
                 userData=snap.val();
@@ -1607,7 +1555,7 @@
         }
         return rtdb.ref('users/'+currentUserKey).update(userData);
     }
-    function handleLogout(){if(timerInterval)clearInterval(timerInterval);currentEmail='';currentUserKey='';navigateTo('authScreen');}
+    function handleLogout(){if(timerInterval)clearInterval(timerInterval);try{localStorage.removeItem('dinarUserKey');}catch(e){}currentEmail='';currentUserKey='';navigateTo('authScreen');}
     
     function loadTreasureBoxesList(){
         if(!rtdb) return;
@@ -1621,7 +1569,7 @@
                 box3: { title: "الصندوق الذهبي الملكي النادر", price: 4000, reward: 10000 }
             };
 
-            let isAdmin = (currentUserKey==='msaftwtn_gmail_com'||currentEmail==='msaftwtn_gmail_com'||userData.customId==='1');
+            let isAdmin = (currentUserKey==='msaftwtn_gmail_com'||currentEmail==='msaftwtn@gmail.com'||userData.customId==='1');
 
             let html = '';
             ['box1', 'box2', 'box3'].forEach((bKey, idx)=>{
@@ -1632,6 +1580,7 @@
                 if(isAdmin){
                     actionButtonHtml = `<button class="action-btn btn-purple" style="padding:6px;margin-top:4px" onclick="openAdminTreasureEditModalForBox('${bKey}')">⚙️ تعديل الصندوق (إدارة)</button>`;
                 } else {
+                    // تعديل كنز لاونج الأسبوعي حصراً: السعر ظاهر، والجائزة مخفية لإثارة الفضول ودفع المستخدم للفتح
                     actionButtonHtml = `<button class="action-btn btn-gold" style="padding:6px" onclick="openTreasureBox('${bKey}', ${b.price}, ${b.reward}, '${b.title}')">افتح الصندوق بـ ${Number(b.price).toLocaleString()} 🪙</button>`;
                 }
 
@@ -1664,7 +1613,7 @@
     }
 
     function saveAdminTreasureBoxChanges(){
-        if(currentUserKey!=='msaftwtn_gmail_com'&&currentEmail!=='msaftwtn_gmail_com'&&userData.customId!=='1') return alert("⚠️ غير مسموح.");
+        if(currentUserKey!=='msaftwtn_gmail_com'&&currentEmail!=='msaftwtn@gmail.com'&&userData.customId!=='1') return alert("⚠️ غير مسموح.");
         let boxKey = document.getElementById('adminTreasureSelectBox').value;
         let title = document.getElementById('adminTreasureTitleInput').value.trim();
         let price = parseInt(document.getElementById('adminTreasurePriceInput').value);
@@ -2017,7 +1966,7 @@
 
     function sendFriendRequestFromVisitedProfile(){
         if(!visitedProfileTargetKey||visitedProfileTargetKey===currentUserKey)return alert("⚠️ خطأ!");
-        rtdb.ref(`friends/${currentUserKey}/${visitedProfileTargetKey}`).once('value',fs=>{
+        rtdb.ref(`friends/${currentUserKey}/${visitedProfileTargetKey}`).once('value').then(fs=>{
             if(fs.exists())return alert("⚠️ مضاف مسبقاً!");
             rtdb.ref(`friend_requests/${visitedProfileTargetKey}/${currentUserKey}`).set({name:userData.name,customId:userData.customId,timestamp:Date.now()}).then(()=>alert("✅ تم إرسال طلب الصداقة!"));
         });
@@ -2482,15 +2431,15 @@
                     let isEmoji = (msg.giftIcon==='palace'||msg.giftIcon==='plane');
                     h+=`<div style="display:flex;justify-content:center;margin:8px 0"><div class="gift-chat-card"><div class="gift-chat-header"><span class="gift-chat-sender">🦋 ${msg.senderName}</span><span class="gift-chat-target">» ${msg.targetName}</span></div><div class="gift-chat-body"><span class="gift-chat-count">1 x</span>${isEmoji ? `<span style="font-size:55px">${giftDisplayImg}</span>` : giftDisplayImg}</div></div></div>`;
                 }else{
-                    let rep=`<button class="msg-action-btn" onclick="prepareReplyToMessage('${msg.senderName.replace(/'/g,"\\'')}', '${(msg.text||'').replace(/'/g,"\\'')}')">🔃</button>`;
-                    let gft=!isMe?`<button class="msg-action-btn" style="margin-left:6px" onclick="openUnifiedGiftBox('${msg.sender}','${msg.senderName.replace(/'/g,"\\'')}')">🎁</button>`:'';
+                    let rep=`<button class="msg-action-btn" onclick="prepareReplyToMessage('${msg.senderName.replace(/'/g,"\\'")}', '${(msg.text||'').replace(/'/g,"\\'")}')">🔃</button>`;
+                    let gft=!isMe?`<button class="msg-action-btn" style="margin-left:6px" onclick="openUnifiedGiftBox('${msg.sender}','${msg.senderName.replace(/'/g,"\\'")}')">🎁</button>`:'';
                     let bg=isMe?"background:#ef4444;color:#fff":"background:#10b981;color:#fff";
                     let q=msg.replyTo?`<div style="background:rgba(0,0,0,0.25);border-right:2px solid #38bdf8;padding:3px 6px;border-radius:4px;margin-bottom:4px;font-size:10px;color:#cbd5e1"><b style="color:#38bdf8">${msg.replyTo.senderName}:</b> ${msg.replyTo.text}</div>`:'';
                     let msgVerifiedIcon = msg.isVerified ? `<span class="verified-badge-icon" style="width:12px;height:12px;font-size:8px;">✔</span>` : '';
 
                     h+=`<div class="chat-msg-row" style="text-align:${isMe?'left':'right'};margin-bottom:5px">
                         <div style="font-size:9px;color:#38bdf8;cursor:pointer" onclick="openVisitedUserProfileByKeyDirect('${msg.sender}')"><b>${msg.senderName}</b> ${msgVerifiedIcon} ${gft}</div>
-                        <div class="msg-bubble-container chat-bubble-swipe" style="${bg}" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event, '${msg.senderName.replace(/'/g,"\\'')}', '${(msg.text||'').replace(/'/g,"\\'')}')">
+                        <div class="msg-bubble-container chat-bubble-swipe" style="${bg}" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event)" ontouchend="handleTouchEnd(event, '${msg.senderName.replace(/'/g,"\\'")}', '${(msg.text||'').replace(/'/g,"\\'")}')">
                             <div>${rep}</div>
                             <div style="flex:1;text-align:right">${q}<span>${msg.text}</span></div>
                             <div>${del}</div>
