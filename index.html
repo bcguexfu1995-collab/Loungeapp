@@ -9,12 +9,41 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <style>
-        *{box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;transition:all 0.2s ease}
-        body{margin:0;padding:15px;background:radial-gradient(circle at center,#131826 0%,#070913 100%);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+        *{box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;transition:all 0.2s ease;margin:0;padding:0}
+        body{background:radial-gradient(circle at center,#131826 0%,#070913 100%);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:15px;overflow-x:hidden}
         .container{width:100%;max-width:420px;padding-bottom:70px}
         .screen-page{display:none;width:100%;min-height:85vh;flex-direction:column;justify-content:flex-start}
         .screen-page.active{display:flex}
         
+        /* شاشة الاستقبال Muted Splash Screen */
+        #splashScreen.screen-page.active {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 90vh; text-align: center;
+        }
+        @keyframes horrorGlow { 
+            0% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(168,85,247,0.6)); } 
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 28px rgba(239,68,68,0.9)) brightness(1.25); } 
+            100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(168,85,247,0.6)); } 
+        }
+        .splash-logo-box{
+            width:110px;height:110px;border-radius:50%;
+            background:radial-gradient(circle,#3b0764 0%,#090514 100%);
+            border:3px solid #c084fc;
+            display:flex;flex-direction:column;justify-content:center;align-items:center;
+            margin:0 auto 20px auto;
+            box-shadow:0 0 30px rgba(192,132,252,0.7);
+            animation:horrorGlow 3s ease-in-out infinite;
+        }
+        .loading-bar-track{
+            width:220px;height:6px;background:rgba(255,255,255,0.1);
+            border-radius:10px;overflow:hidden;margin-top:20px;
+            border:1px solid rgba(192,132,252,0.3);
+        }
+        .loading-bar-fill{
+            width:0%;height:100%;background:linear-gradient(90deg,#9333ea,#38bdf8);
+            border-radius:10px;transition:width 0.15s linear;
+        }
+
         .ticker-wrap { width: 100%; background: rgba(147, 51, 234, 0.2); border: 1px solid rgba(192, 132, 252, 0.4); border-radius: 12px; overflow: hidden; margin-bottom: 10px; padding: 6px 0; display: flex; align-items: center; }
         .ticker-title { background: #9333ea; color: #fff; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: bold; margin-right: 6px; white-space: nowrap; }
         .ticker-text { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 18s linear infinite; font-size: 11px; color: #f0abfc; font-weight: bold; }
@@ -29,8 +58,6 @@
         #authScreen.screen-page.active { background: linear-gradient(-45deg, #020617, #0f172a, #3b0764, #18181b, #000000); background-size: 500% 500%; animation: darkHorrorWave 10s ease infinite; justify-content: center; align-items: center; border-radius: 20px; }
 
         .auth-card{background:rgba(15,23,42,0.92);backdrop-filter:blur(20px);border:1px solid rgba(168,85,247,0.5);border-radius:24px;padding:24px 20px;box-shadow:0 25px 50px rgba(0,0,0,0.95), 0 0 20px rgba(168,85,247,0.2);text-align:center;width:100%;position:relative;z-index:10}
-        
-        @keyframes horrorGlow { 0% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(168,85,247,0.6)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 22px rgba(239,68,68,0.9)) brightness(1.2); } 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(168,85,247,0.6)); } }
         .animated-logo-container{animation:horrorGlow 3s ease-in-out infinite;display:inline-block;margin-bottom:10px}
         
         .tab-switch{display:flex;background:rgba(15,23,42,0.9);border-radius:12px;padding:4px;margin-bottom:16px;direction:rtl;border:1px solid rgba(255,255,255,0.05)}
@@ -170,7 +197,23 @@
 </head>
 <body>
 <div class="container">
-    <div id="authScreen" class="screen-page active">
+    <!-- 1. شاشة الاستقبال الفورية المدمجة (Splash Screen) -->
+    <div id="splashScreen" class="screen-page active">
+        <div class="splash-logo-box">
+            <span style="font-size:26px;font-weight:900;color:#c084fc;letter-spacing:1px;">Lounge</span>
+            <span style="font-size:12px;font-weight:bold;color:#fff;">App</span>
+        </div>
+        <h2 style="color:#c084fc;font-size:20px;margin-bottom:6px;font-weight:800;">تطبيق Lounge الرسمي</h2>
+        <p style="color:#94a3b8;font-size:12px;margin-bottom:15px;">جارٍ التحميل والتأكد من بيانات الحساب...</p>
+
+        <div class="loading-bar-track">
+            <div class="loading-bar-fill" id="loadingProgressFill"></div>
+        </div>
+        <div id="loadingStatusText" style="font-size:10px;color:#38bdf8;margin-top:8px;font-family:monospace;">جاري تهيئة النظام...</div>
+    </div>
+
+    <!-- 2. واجهة تسجيل الدخول أو إنشاء حساب جديد -->
+    <div id="authScreen" class="screen-page">
         <div class="auth-card">
             <div class="animated-logo-container">
                 <div style="width:75px;height:75px;border-radius:50%;background:radial-gradient(circle,#3b0764 0%,#090514 100%);border:2px solid #c084fc;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0 auto;box-shadow:0 0 20px rgba(192,132,252,0.6)">
@@ -197,6 +240,7 @@
         </div>
     </div>
 
+    <!-- 3. الشاشة الرئيسية للتطبيق -->
     <div id="mainScreen" class="screen-page">
         <div class="ticker-wrap">
             <span class="ticker-title">📢 إعلان</span>
@@ -310,6 +354,7 @@
         </div>
     </div>
 
+    <!-- باقي الشاشات والألعاب والقوائم المتكاملة -->
     <div id="counterTradingScreen" class="screen-page">
         <div class="top-nav">
             <h3 style="margin:0;color:#10b981;font-size:15px">🛒 سوق بيع وشراء العدادات</h3>
@@ -569,6 +614,7 @@
     </div>
 </div>
 
+<!-- المودالات والنوافذ المنبثقة كاملة -->
 <div id="sellCounterModal" class="modal">
     <div class="modal-content" style="text-align:right; max-width:320px; padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -956,12 +1002,8 @@
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(addr).then(()=>{
                 alert("📋 تم نسخ عنوان محفظة USDT TRC20 بنجاح!");
-            }).catch(()=>{
-                fallbackCopyUsdt(addr);
-            });
-        } else {
-            fallbackCopyUsdt(addr);
-        }
+            }).catch(()=>{ fallbackCopyUsdt(addr); });
+        } else { fallbackCopyUsdt(addr); }
     }
     function fallbackCopyUsdt(text) {
         let textArea = document.createElement("textarea");
@@ -974,9 +1016,7 @@
             let successful = document.execCommand('copy');
             if(successful) alert("📋 تم نسخ عنوان محفظة USDT TRC20 بنجاح!");
             else alert("❌ تعذر النسخ.");
-        } catch (err) {
-            alert("❌ تعذر النسخ.");
-        }
+        } catch (err) { alert("❌ تعذر النسخ."); }
         document.body.removeChild(textArea);
     }
 
@@ -1277,10 +1317,11 @@
         if (qBox) qBox.innerText = "انتهى التحدي اليومي. نراكم غداً بمزيد من الأسئلة المتجددة!";
     }
 
-    window.addEventListener('load',()=>{
+    // تهيئة وشريط التحميل التلقائي لشاشة الاستقبال
+    window.addEventListener('load', () => {
         initLoungeTickerAnimation();
-        try{
-            const firebaseConfig={
+        try {
+            const firebaseConfig = {
                 apiKey: "AIzaSyDtafaH13sD8fHRNoyzib_5aqLctsuMnY8",
                 authDomain: "lounge-ed8e4.firebaseapp.com",
                 databaseURL: "https://lounge-ed8e4-default-rtdb.firebaseio.com",
@@ -1290,26 +1331,50 @@
                 appId: "1:666831911373:web:286661e957635870201484",
                 measurementId: "G-TQBXTEW9FX"
             };
-            if(typeof firebase!=='undefined'&&!firebase.apps.length){
+            if(typeof firebase !== 'undefined' && !firebase.apps.length){
                 firebase.initializeApp(firebaseConfig);
-                rtdb=firebase.database();
-                auth=firebase.auth();
+                rtdb = firebase.database();
+                auth = firebase.auth();
                 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => console.log(err));
             }
-        }catch(e){}
-        setTimeout(()=>{
-            try{
-                const savedUserKey=localStorage.getItem('dinarUserKey');
-                if(savedUserKey&&rtdb){
-                    currentUserKey=savedUserKey;
-                    initRealtimeSync();
-                    navigateTo('mainScreen');
-                } else {
-                    navigateTo('authScreen');
-                }
-            }catch(err){navigateTo('authScreen');}
-        },300);
+        } catch(e) {}
+
+        // تشغيل شاشة الاستقبال الفورية
+        runAppSplashScreen();
     });
+
+    function runAppSplashScreen(){
+        let fill = document.getElementById('loadingProgressFill');
+        let status = document.getElementById('loadingStatusText');
+        let progress = 0;
+
+        let interval = setInterval(() => {
+            progress += Math.floor(Math.random() * 15) + 10;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+                status.innerText = "تم الاتصال! جارٍ فتح التطبيق...";
+                setTimeout(evaluateAppRouting, 300);
+            }
+            if(fill) fill.style.width = progress + '%';
+            if(progress > 40 && progress < 85) status.innerText = "جارٍ فحص الجلسة والحساب...";
+        }, 100);
+    }
+
+    function evaluateAppRouting(){
+        try {
+            const savedUserKey = localStorage.getItem('dinarUserKey');
+            if(savedUserKey && rtdb){
+                currentUserKey = savedUserKey;
+                initRealtimeSync();
+                navigateTo('mainScreen');
+            } else {
+                navigateTo('authScreen');
+            }
+        } catch(err) {
+            navigateTo('authScreen');
+        }
+    }
 
     function navigateTo(screenId){
         document.querySelectorAll('.screen-page').forEach(p=>p.classList.remove('active'));
